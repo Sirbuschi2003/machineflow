@@ -5,9 +5,20 @@ REPO="Sirbuschi2003/machineflow"
 BRANCH="master"
 INSTALL_DIR="$(cd "$(dirname "$0")" && pwd)"
 
+# Detect docker compose command
+if docker compose version > /dev/null 2>&1; then
+  COMPOSE="docker compose"
+elif command -v docker-compose > /dev/null 2>&1; then
+  COMPOSE="docker-compose"
+else
+  echo "FEHLER: Weder 'docker compose' noch 'docker-compose' gefunden!"
+  exit 1
+fi
+
 echo "╔══════════════════════════════════════╗"
 echo "║       MachineFlow – Update           ║"
 echo "╚══════════════════════════════════════╝"
+echo "  (Compose: $COMPOSE)"
 
 echo ""
 echo "▶ Lade neueste Version von GitHub..."
@@ -22,19 +33,19 @@ cd "${INSTALL_DIR}"
 
 echo ""
 echo "▶ Baue Images..."
-docker compose build
+$COMPOSE build
 
 echo ""
 echo "▶ Starte Container..."
-docker compose up -d
+$COMPOSE up -d
 
 echo ""
 echo "▶ Warte auf Datenbankmigrationen..."
-sleep 5
+sleep 8
 
 echo ""
 echo "▶ Container-Status:"
-docker compose ps
+$COMPOSE ps
 
 echo ""
 echo "✓ Update abgeschlossen!"
