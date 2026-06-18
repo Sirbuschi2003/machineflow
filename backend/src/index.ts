@@ -50,7 +50,7 @@ app.use('/api/sales-reps', salesRepsRouter);
 app.use('/api/statistics', statisticsRouter);
 
 app.listen(PORT, () => {
-  console.log(`MachineFlow Backend läuft auf Port ${PORT}`);
+  console.log(`Auftragsverwaltung Backend läuft auf Port ${PORT}`);
 });
 
 export default app;

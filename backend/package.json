@@ -1,5 +1,5 @@
 {
-  "name": "machineflow-backend",
+  "name": "auftragsverwaltung-backend",
   "version": "1.0.0",
   "scripts": {
     "dev": "nodemon",

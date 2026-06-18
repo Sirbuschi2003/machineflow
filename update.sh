@@ -6,11 +6,11 @@ main() {
   DIR="$(cd "$(dirname "$0")" && pwd)"
   cd "$DIR"
 
-  echo "MachineFlow - Update"
-  echo "--------------------"
+  echo "Auftragsverwaltung - Update"
+  echo "---------------------------"
 
   echo "Lade neue docker-compose.yml..."
-  curl -fsSL "https://raw.githubusercontent.com/Sirbuschi2003/machineflow/master/docker-compose.yml" \
+  curl -fsSL "https://raw.githubusercontent.com/Sirbuschi2003/auftragsverwaltung/master/docker-compose.yml" \
     | tr -d '\r' > docker-compose.yml
 
   echo "Lade neue Images von ghcr.io..."
