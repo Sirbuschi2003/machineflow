@@ -18,10 +18,15 @@ tar -xzf /tmp/machineflow.tar.gz -C /tmp/
 cp -rf /tmp/machineflow-${BRANCH}/. "${INSTALL_DIR}/"
 rm -rf /tmp/machineflow.tar.gz /tmp/machineflow-${BRANCH}
 
-echo ""
-echo "▶ Baue und starte Container neu..."
 cd "${INSTALL_DIR}"
-docker compose up --build -d
+
+echo ""
+echo "▶ Baue Images..."
+docker compose build
+
+echo ""
+echo "▶ Starte Container..."
+docker compose up -d
 
 echo ""
 echo "▶ Warte auf Datenbankmigrationen..."
@@ -33,4 +38,3 @@ docker compose ps
 
 echo ""
 echo "✓ Update abgeschlossen!"
-echo "  App erreichbar unter: http://$(hostname -i 2>/dev/null | awk '{print $1}' || echo '<NAS-IP>'):5174"
