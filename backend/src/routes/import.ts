@@ -62,47 +62,27 @@ function extractMachineModels(text: string): string[] {
 }
 
 function parseAccessories(text: string): ParsedItem[] {
-  // Anchor on article numbers (very distinctive: digit + 10-11 alphanumeric chars)
-  // Then look back for product code and forward for name
-  const ARTICLE_RE = /\b([0-9][A-Z0-9]{9,11})\b/g;
-  const CODE_RE = /([A-Z]{1,4}(?:-[A-Z0-9]+)+)\s*$/;
-  // Size/weight/dims info to strip from name
-  const TRIM_RE = /[,;]?\s*\d[\d\s]*\s*(x\s*\d|mm|cm|kg|Blatt|Blatt|Umschläge|Ablagen|Kapazität|g\/m).*/i;
+  // pdf-parse extracts table cells WITHOUT spaces between columns:
+  // "KA-5005PC6AG00006726Vorlagenglasabdeckung"
+  // Toshiba article numbers always start with "6" + 10 alphanumeric chars
+  const ITEM_RE = /\b([A-Z]{2,5}(?:-[A-Z0-9]+)+)(6[A-Z0-9]{9,11})([^\n]{2,120})/g;
+  const TRIM_RE = /[,;]?\s*\d[\d\s]*\s*(x\s*\d|mm|cm|kg|Blatt|Umschläge|Ablagen|Kapazität|g\/m).*/i;
 
   const accessories: ParsedItem[] = [];
   const seenCodes = new Set<string>();
-  let match: RegExpExecArray | null;
+  let m: RegExpExecArray | null;
 
-  while ((match = ARTICLE_RE.exec(text)) !== null) {
-    const articleNumber = match[1];
-    const pos = match.index;
-
-    // Look back up to 80 chars for a product code
-    const before = text.substring(Math.max(0, pos - 80), pos);
-    const codeMatch = before.match(CODE_RE);
-    if (!codeMatch) continue;
-    const code = codeMatch[1];
+  while ((m = ITEM_RE.exec(text)) !== null) {
+    const [, code, articleNumber, rawName] = m;
     if (seenCodes.has(code)) continue;
 
-    // Look forward up to 300 chars for the name
-    const after = text.substring(pos + articleNumber.length, pos + articleNumber.length + 300);
-    // Name is the next non-empty stretch of text (skip leading whitespace/newlines)
-    const nameMatch = after.match(/^[\s\n]+([^\n]+)/);
-    if (!nameMatch) continue;
-
-    let name = nameMatch[1].trim();
-    // Strip dimension/weight details that come after the name
+    let name = rawName.trim();
     name = name.replace(TRIM_RE, '').trim();
-    // Remove trailing punctuation
     name = name.replace(/[,;]\s*$/, '').trim();
-    if (!name || name.length < 3) continue;
+    if (!name || name.length < 2) continue;
 
-    // Skip consumables
-    const nameLower = name.toLowerCase();
-    const codeLower = code.toLowerCase();
-    if (CONSUMABLE_KEYWORDS.some((kw) => nameLower.includes(kw) || codeLower.includes(kw))) continue;
-
-    // Skip machine model lines
+    const lower = name.toLowerCase();
+    if (CONSUMABLE_KEYWORDS.some((kw) => lower.includes(kw))) continue;
     if (name.startsWith('e-STUDIO')) continue;
 
     seenCodes.add(code);
