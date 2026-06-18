@@ -40,6 +40,7 @@ export interface Accessory {
   name: string;
   description?: string;
   hasSerialNumber: boolean;
+  compatibleModels?: { id: string; modelName: string }[];
 }
 
 export interface RequestAccessory {
@@ -121,11 +122,23 @@ export const api = {
 
   accessories: {
     getAll: () => request<Accessory[]>('/accessories'),
-    create: (data: Partial<Accessory>) =>
+    create: (data: Partial<Accessory> & { machineModelIds?: string[] }) =>
       request<Accessory>('/accessories', { method: 'POST', body: JSON.stringify(data) }),
-    update: (id: string, data: Partial<Accessory>) =>
+    update: (id: string, data: Partial<Accessory> & { machineModelIds?: string[] }) =>
       request<Accessory>(`/accessories/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: string) => request<void>(`/accessories/${id}`, { method: 'DELETE' }),
+  },
+
+  import: {
+    parsePdf: async (file: File): Promise<{ machineModels: string[]; accessories: { code: string; articleNumber: string; name: string; selected: boolean }[] }> => {
+      const form = new FormData();
+      form.append('pdf', file);
+      const res = await fetch('/api/import/parse-pdf', { method: 'POST', credentials: 'include', body: form });
+      if (!res.ok) { const e = await res.json().catch(() => ({ message: 'Fehler.' })); throw new Error(e.message); }
+      return res.json();
+    },
+    confirm: (data: { accessories: { code: string; articleNumber: string; name: string; selected: boolean }[]; machineModelIds: string[] }) =>
+      request<{ created: number; skipped: number; message: string }>('/import/confirm', { method: 'POST', body: JSON.stringify(data) }),
   },
 
   machineRequests: {

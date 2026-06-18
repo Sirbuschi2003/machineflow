@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Plus, Pencil, Trash2, X, Check } from 'lucide-react';
 import { api, User, MachineModel, Accessory, Customer, Role } from '../api/client';
 
-type Tab = 'users' | 'models' | 'accessories' | 'customers';
+type Tab = 'users' | 'models' | 'accessories' | 'customers' | 'import';
 
 const ROLE_LABELS: Record<Role, string> = {
   SALES: 'Vertrieb',
@@ -333,20 +333,40 @@ function ModelsTab() {
 // ─── Accessories Tab ─────────────────────────────────────────────────────────
 function AccessoriesTab() {
   const [items, setItems] = useState<Accessory[]>([]);
+  const [allModels, setAllModels] = useState<MachineModel[]>([]);
   const [editing, setEditing] = useState<Partial<Accessory> | null>(null);
+  const [selectedModelIds, setSelectedModelIds] = useState<string[]>([]);
   const [isNew, setIsNew] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [error, setError] = useState('');
 
   const load = useCallback(() => api.accessories.getAll().then(setItems), []);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { api.machineModels.getAll().then(setAllModels); }, []);
+
+  const openNew = () => {
+    setEditing({ hasSerialNumber: false });
+    setSelectedModelIds([]);
+    setIsNew(true);
+    setError('');
+  };
+
+  const openEdit = (item: Accessory) => {
+    setEditing({ ...item });
+    setSelectedModelIds((item.compatibleModels ?? []).map((m) => m.id));
+    setIsNew(false);
+    setError('');
+  };
+
+  const toggleModel = (id: string) =>
+    setSelectedModelIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
 
   const save = async () => {
     if (!editing) return;
     setError('');
     try {
-      if (isNew) { await api.accessories.create(editing); }
-      else { await api.accessories.update(editing.id!, editing); }
+      if (isNew) { await api.accessories.create({ ...editing, machineModelIds: selectedModelIds }); }
+      else { await api.accessories.update(editing.id!, { ...editing, machineModelIds: selectedModelIds }); }
       setEditing(null);
       load();
     } catch (e: unknown) {
@@ -363,13 +383,14 @@ function AccessoriesTab() {
   return (
     <div className="space-y-4">
       {deleteId && <ConfirmDialog message="Zubehör wirklich löschen?" onConfirm={() => del(deleteId)} onCancel={() => setDeleteId(null)} />}
+      {error && !editing && <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>}
       <div className="flex justify-end">
-        <button className="btn-primary" onClick={() => { setEditing({ hasSerialNumber: false }); setIsNew(true); setError(''); }}>
+        <button className="btn-primary" onClick={openNew}>
           <Plus className="w-4 h-4" /> Zubehör hinzufügen
         </button>
       </div>
       {editing && (
-        <div className="card p-5 space-y-3">
+        <div className="card p-5 space-y-4">
           <h3 className="text-sm font-semibold text-gray-900">{isNew ? 'Neues Zubehör' : 'Zubehör bearbeiten'}</h3>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -377,7 +398,7 @@ function AccessoriesTab() {
               <input className="input" value={editing.name || ''} onChange={(e) => setEditing((p) => ({ ...p, name: e.target.value }))} />
             </div>
             <div>
-              <label className="label">Beschreibung</label>
+              <label className="label">Beschreibung / Art.-Nr.</label>
               <input className="input" value={editing.description || ''} onChange={(e) => setEditing((p) => ({ ...p, description: e.target.value }))} />
             </div>
           </div>
@@ -391,6 +412,34 @@ function AccessoriesTab() {
             />
             <label htmlFor="hasSn" className="text-sm text-gray-700">Seriennummer erforderlich</label>
           </div>
+
+          {/* Compatible machine models */}
+          <div>
+            <label className="label">Passt an folgende Maschinenmodelle</label>
+            {allModels.length === 0 ? (
+              <p className="text-sm text-gray-400 italic">Noch keine Maschinenmodelle angelegt.</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 mt-1">
+                {allModels.map((m) => (
+                  <label
+                    key={m.id}
+                    className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-colors ${
+                      selectedModelIds.includes(m.id) ? 'bg-brand-50 border-brand-200' : 'bg-white border-gray-100 hover:border-gray-200'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedModelIds.includes(m.id)}
+                      onChange={() => toggleModel(m.id)}
+                      className="w-4 h-4 text-brand-600 rounded border-gray-300"
+                    />
+                    <span className="text-sm text-gray-800">{m.modelName}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex gap-2 justify-end">
             <button className="btn-secondary" onClick={() => setEditing(null)}><X className="w-4 h-4" /> Abbrechen</button>
@@ -403,7 +452,7 @@ function AccessoriesTab() {
           <thead className="bg-gray-50">
             <tr>
               <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Name</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Beschreibung</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Passt an</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">S/N</th>
               <th className="w-20" />
             </tr>
@@ -411,8 +460,21 @@ function AccessoriesTab() {
           <tbody className="divide-y divide-gray-50">
             {items.map((item) => (
               <tr key={item.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 font-medium text-gray-900">{item.name}</td>
-                <td className="px-4 py-3 text-gray-500">{item.description || '—'}</td>
+                <td className="px-4 py-3">
+                  <p className="font-medium text-gray-900">{item.name}</p>
+                  {item.description && <p className="text-xs text-gray-400 mt-0.5">{item.description}</p>}
+                </td>
+                <td className="px-4 py-3">
+                  {(item.compatibleModels ?? []).length === 0 ? (
+                    <span className="text-xs text-gray-400 italic">alle / keine Einschränkung</span>
+                  ) : (
+                    <div className="flex flex-wrap gap-1">
+                      {(item.compatibleModels ?? []).map((m) => (
+                        <span key={m.id} className="text-xs bg-brand-50 text-brand-700 px-1.5 py-0.5 rounded-full">{m.modelName}</span>
+                      ))}
+                    </div>
+                  )}
+                </td>
                 <td className="px-4 py-3">
                   {item.hasSerialNumber
                     ? <span className="text-xs bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded font-medium">Ja</span>
@@ -420,7 +482,7 @@ function AccessoriesTab() {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1 justify-end">
-                    <button className="text-gray-400 hover:text-brand-600 transition-colors p-1" onClick={() => { setEditing({ ...item }); setIsNew(false); }}>
+                    <button className="text-gray-400 hover:text-brand-600 transition-colors p-1" onClick={() => openEdit(item)}>
                       <Pencil className="w-4 h-4" />
                     </button>
                     <button className="text-gray-400 hover:text-red-500 transition-colors p-1" onClick={() => setDeleteId(item.id)}>
@@ -433,6 +495,159 @@ function AccessoriesTab() {
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+// ─── PDF Import Tab ───────────────────────────────────────────────────────────
+interface ParsedItem { code: string; articleNumber: string; name: string; selected: boolean }
+
+function ImportTab() {
+  const [models, setModels] = useState<MachineModel[]>([]);
+  const [selectedModelIds, setSelectedModelIds] = useState<string[]>([]);
+  const [file, setFile] = useState<File | null>(null);
+  const [parsing, setParsing] = useState(false);
+  const [items, setItems] = useState<ParsedItem[] | null>(null);
+  const [detectedModels, setDetectedModels] = useState<string[]>([]);
+  const [importing, setImporting] = useState(false);
+  const [result, setResult] = useState('');
+  const [error, setError] = useState('');
+
+  useEffect(() => { api.machineModels.getAll().then(setModels); }, []);
+
+  const toggleModel = (id: string) =>
+    setSelectedModelIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+
+  const toggleItem = (idx: number) =>
+    setItems((prev) => prev ? prev.map((it, i) => i === idx ? { ...it, selected: !it.selected } : it) : null);
+
+  const editName = (idx: number, name: string) =>
+    setItems((prev) => prev ? prev.map((it, i) => i === idx ? { ...it, name } : it) : null);
+
+  const parsePdf = async () => {
+    if (!file) return;
+    setParsing(true);
+    setError('');
+    setResult('');
+    setItems(null);
+    try {
+      const data = await api.import.parsePdf(file);
+      setItems(data.accessories);
+      setDetectedModels(data.machineModels);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Fehler beim Lesen.');
+    } finally {
+      setParsing(false);
+    }
+  };
+
+  const doImport = async () => {
+    if (!items) return;
+    setImporting(true);
+    setError('');
+    try {
+      const res = await api.import.confirm({ accessories: items, machineModelIds: selectedModelIds });
+      setResult(res.message);
+      setItems(null);
+      setFile(null);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Fehler beim Importieren.');
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const selectedCount = items?.filter((i) => i.selected).length ?? 0;
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h2 className="text-sm font-semibold text-gray-900">Hersteller-PDF importieren</h2>
+        <p className="text-xs text-gray-500 mt-0.5">Zubehör wird automatisch aus dem Konfigurationsdokument ausgelesen. Verbrauchsmaterialien (Toner, Entwickler, Trommel) werden übersprungen.</p>
+      </div>
+
+      {result && (
+        <div className="p-3 bg-green-50 border border-green-100 rounded-xl text-sm text-green-800 font-medium">{result}</div>
+      )}
+      {error && (
+        <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-sm text-red-600">{error}</div>
+      )}
+
+      {/* Step 1: select models */}
+      <div className="card p-5 space-y-3">
+        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Schritt 1 — Maschinenmodell(e) zuweisen</h3>
+        <p className="text-xs text-gray-500">Welche bereits angelegten Modelle passen zu diesem Zubehör?</p>
+        {models.length === 0 ? (
+          <p className="text-sm text-gray-400 italic">Noch keine Modelle angelegt.</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            {models.map((m) => (
+              <label key={m.id} className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-colors ${
+                selectedModelIds.includes(m.id) ? 'bg-brand-50 border-brand-200' : 'bg-white border-gray-100 hover:border-gray-200'
+              }`}>
+                <input type="checkbox" checked={selectedModelIds.includes(m.id)} onChange={() => toggleModel(m.id)}
+                  className="w-4 h-4 text-brand-600 rounded border-gray-300" />
+                <span className="text-sm text-gray-800">{m.modelName}</span>
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Step 2: upload PDF */}
+      <div className="card p-5 space-y-3">
+        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Schritt 2 — PDF hochladen</h3>
+        <div className="flex gap-3 items-center">
+          <label className="flex-1">
+            <input type="file" accept="application/pdf" className="hidden"
+              onChange={(e) => { setFile(e.target.files?.[0] ?? null); setItems(null); setResult(''); }} />
+            <div className="input cursor-pointer text-gray-500 truncate">
+              {file ? file.name : 'PDF-Datei auswählen…'}
+            </div>
+          </label>
+          <button className="btn-primary whitespace-nowrap" onClick={parsePdf} disabled={!file || parsing}>
+            {parsing ? <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> : null}
+            {parsing ? 'Lese…' : 'PDF auslesen'}
+          </button>
+        </div>
+        {detectedModels.length > 0 && (
+          <p className="text-xs text-gray-500">
+            Erkannte Modelle im PDF: {detectedModels.join(', ')}
+          </p>
+        )}
+      </div>
+
+      {/* Step 3: preview & import */}
+      {items && (
+        <div className="card p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              Schritt 3 — Vorschau ({selectedCount} von {items.length} ausgewählt)
+            </h3>
+            <button className="btn-primary" onClick={doImport} disabled={importing || selectedCount === 0}>
+              {importing ? 'Importiere…' : `${selectedCount} Artikel importieren`}
+            </button>
+          </div>
+          <div className="max-h-96 overflow-y-auto space-y-1">
+            {items.map((item, idx) => (
+              <div key={idx} className={`flex items-center gap-3 p-2.5 rounded-lg border transition-colors ${
+                item.selected ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-100 opacity-50'
+              }`}>
+                <input type="checkbox" checked={item.selected} onChange={() => toggleItem(idx)}
+                  className="w-4 h-4 text-brand-600 rounded border-gray-300 flex-shrink-0" />
+                <span className="text-xs font-mono text-gray-400 w-24 flex-shrink-0">{item.code}</span>
+                <input
+                  className="flex-1 text-sm text-gray-800 bg-transparent border-b border-transparent hover:border-gray-200 focus:border-brand-400 focus:outline-none px-1"
+                  value={item.name}
+                  onChange={(e) => editName(idx, e.target.value)}
+                  disabled={!item.selected}
+                />
+                <span className="text-xs text-gray-400 flex-shrink-0">{item.articleNumber}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -564,6 +779,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'models', label: 'Maschinenmodelle' },
   { id: 'accessories', label: 'Zubehör' },
   { id: 'customers', label: 'Kunden' },
+  { id: 'import', label: 'PDF-Import' },
 ];
 
 export default function Admin() {
@@ -599,6 +815,7 @@ export default function Admin() {
       {activeTab === 'models' && <ModelsTab />}
       {activeTab === 'accessories' && <AccessoriesTab />}
       {activeTab === 'customers' && <CustomersTab />}
+      {activeTab === 'import' && <ImportTab />}
     </div>
   );
 }

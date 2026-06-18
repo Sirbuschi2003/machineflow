@@ -8,6 +8,7 @@ import accessoriesRouter from './routes/accessories';
 import machineRequestsRouter from './routes/machineRequests';
 import salesRepsRouter from './routes/salesReps';
 import statisticsRouter from './routes/statistics';
+import importRouter from './routes/import';
 
 declare module 'express-session' {
   interface SessionData {
@@ -48,6 +49,7 @@ app.use('/api/accessories', accessoriesRouter);
 app.use('/api/machine-requests', machineRequestsRouter);
 app.use('/api/sales-reps', salesRepsRouter);
 app.use('/api/statistics', statisticsRouter);
+app.use('/api/import', importRouter);
 
 app.listen(PORT, () => {
   console.log(`Auftragsverwaltung Backend läuft auf Port ${PORT}`);
