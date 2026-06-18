@@ -101,16 +101,6 @@ export default function Login() {
             </button>
           </form>
 
-          <div className="mt-6 pt-5 border-t border-gray-100">
-            <p className="text-xs text-gray-400 font-medium mb-2">Demo-Zugangsdaten:</p>
-            <div className="space-y-1 text-xs text-gray-500">
-              <p><span className="font-medium">Admin:</span> admin@machineflow.de / admin123</p>
-              <p><span className="font-medium">Vertrieb:</span> anna@machineflow.de / sales123</p>
-              <p><span className="font-medium">Lager:</span> lager@machineflow.de / lager123</p>
-              <p><span className="font-medium">Techniker:</span> tech@machineflow.de / tech123</p>
-              <p><span className="font-medium">Leitung:</span> leitung@machineflow.de / mgmt123</p>
-            </div>
-          </div>
         </div>
       </div>
     </div>
