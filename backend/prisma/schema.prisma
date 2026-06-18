@@ -1,0 +1,116 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SALES
+  WAREHOUSE
+  TECHNICIAN
+  ADMIN
+  MANAGEMENT
+}
+
+enum RequestStatus {
+  DRAFT
+  SUBMITTED
+  IN_WAREHOUSE
+  UNPACKING
+  CONFIGURING
+  DONE
+}
+
+model SalesRep {
+  id              String           @id @default(cuid())
+  name            String
+  email           String           @unique
+  passwordHash    String
+  role            Role
+  createdAt       DateTime         @default(now())
+  machineRequests MachineRequest[]
+  statusLogs      StatusLog[]
+}
+
+model Customer {
+  id              String           @id @default(cuid())
+  customerNumber  String           @unique
+  companyName     String
+  phone           String?
+  email           String?
+  sites           CustomerSite[]
+  machineRequests MachineRequest[]
+}
+
+model CustomerSite {
+  id              String           @id @default(cuid())
+  customerId      String
+  customer        Customer         @relation(fields: [customerId], references: [id])
+  siteName        String
+  street          String
+  zip             String
+  city            String
+  country         String           @default("Deutschland")
+  isPrimary       Boolean          @default(false)
+  machineRequests MachineRequest[]
+}
+
+model MachineModel {
+  id              String           @id @default(cuid())
+  modelName       String
+  description     String?
+  machineRequests MachineRequest[]
+}
+
+model Accessory {
+  id                 String              @id @default(cuid())
+  name               String
+  description        String?
+  hasSerialNumber    Boolean             @default(false)
+  requestAccessories RequestAccessory[]
+}
+
+model MachineRequest {
+  id                  String              @id @default(cuid())
+  requestNumber       String              @unique
+  status              RequestStatus       @default(DRAFT)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  salesRepId          String
+  salesRep            SalesRep            @relation(fields: [salesRepId], references: [id])
+  customerId          String
+  customer            Customer            @relation(fields: [customerId], references: [id])
+  customerSiteId      String
+  customerSite        CustomerSite        @relation(fields: [customerSiteId], references: [id])
+  machineModelId      String
+  machineModel        MachineModel        @relation(fields: [machineModelId], references: [id])
+  machineSerialNumber String?
+  notes               String?
+  accessories         RequestAccessory[]
+  statusLogs          StatusLog[]
+}
+
+model RequestAccessory {
+  id           String         @id @default(cuid())
+  requestId    String
+  request      MachineRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  accessoryId  String
+  accessory    Accessory      @relation(fields: [accessoryId], references: [id])
+  serialNumber String?
+  quantity     Int            @default(1)
+}
+
+model StatusLog {
+  id              String         @id @default(cuid())
+  requestId       String
+  request         MachineRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  fromStatus      RequestStatus?
+  toStatus        RequestStatus
+  changedByUserId String
+  changedBy       SalesRep       @relation(fields: [changedByUserId], references: [id])
+  changedAt       DateTime       @default(now())
+  comment         String?
+}
