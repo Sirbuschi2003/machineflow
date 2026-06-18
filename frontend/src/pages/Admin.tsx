@@ -646,6 +646,7 @@ function ImportTab() {
                 <span className="text-xs text-gray-400 flex-shrink-0">{item.articleNumber}</span>
               </div>
             ))}
+            </div>
           </div>
         </div>
       )}
