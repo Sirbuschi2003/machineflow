@@ -48,7 +48,7 @@ model Customer {
 model CustomerSite {
   id              String           @id @default(cuid())
   customerId      String
-  customer        Customer         @relation(fields: [customerId], references: [id])
+  customer        Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
   siteName        String
   street          String
   zip             String
