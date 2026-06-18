@@ -14,7 +14,7 @@ export function requireRole(...roles: string[]) {
       res.status(401).json({ message: 'Nicht autorisiert.' });
       return;
     }
-    if (!roles.includes(req.session.userRole)) {
+    if (!req.session.userRole || !roles.includes(req.session.userRole)) {
       res.status(403).json({ message: 'Keine Berechtigung für diese Aktion.' });
       return;
     }
