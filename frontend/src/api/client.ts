@@ -103,6 +103,7 @@ export const api = {
       request<Customer>('/customers', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: Partial<Customer>) =>
       request<Customer>(`/customers/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: string) => request<void>(`/customers/${id}`, { method: 'DELETE' }),
     createSite: (customerId: string, data: Partial<CustomerSite>) =>
       request<CustomerSite>(`/customers/${customerId}/sites`, { method: 'POST', body: JSON.stringify(data) }),
     updateSite: (siteId: string, data: Partial<CustomerSite>) =>

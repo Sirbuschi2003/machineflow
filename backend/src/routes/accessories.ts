@@ -42,7 +42,10 @@ router.delete('/:id', requireRole('ADMIN'), async (req, res) => {
   try {
     await prisma.accessory.delete({ where: { id: req.params.id } });
     res.json({ message: 'Gelöscht.' });
-  } catch (error) {
+  } catch (error: any) {
+    if (error.code === 'P2003' || error.code === 'P2014') {
+      return res.status(409).json({ message: 'Zubehör kann nicht gelöscht werden – es ist noch in Aufträgen verwendet.' });
+    }
     res.status(500).json({ message: 'Interner Serverfehler.' });
   }
 });

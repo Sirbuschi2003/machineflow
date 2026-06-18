@@ -78,7 +78,10 @@ router.delete('/:id', requireRole('ADMIN'), async (req, res) => {
   try {
     await prisma.machineModel.delete({ where: { id: req.params.id } });
     res.json({ message: 'Gelöscht.' });
-  } catch (error) {
+  } catch (error: any) {
+    if (error.code === 'P2003' || error.code === 'P2014') {
+      return res.status(409).json({ message: 'Modell kann nicht gelöscht werden – es existieren noch Aufträge dazu.' });
+    }
     res.status(500).json({ message: 'Interner Serverfehler.' });
   }
 });

@@ -79,6 +79,9 @@ function UsersTab() {
           onCancel={() => setDeleteId(null)}
         />
       )}
+      {error && !editing && (
+        <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>
+      )}
 
       <div className="flex justify-end">
         <button
@@ -439,6 +442,7 @@ function CustomersTab() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [editing, setEditing] = useState<Partial<Customer> | null>(null);
   const [isNew, setIsNew] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [error, setError] = useState('');
 
   const load = useCallback(() => api.customers.getAll().then(setCustomers), []);
@@ -465,8 +469,22 @@ function CustomersTab() {
     }
   };
 
+  const del = async (id: string) => {
+    try { await api.customers.delete(id); load(); }
+    catch (e: unknown) { setError(e instanceof Error ? e.message : 'Fehler.'); }
+    finally { setDeleteId(null); }
+  };
+
   return (
     <div className="space-y-4">
+      {deleteId && (
+        <ConfirmDialog
+          message="Kunden wirklich löschen? Nur möglich wenn keine Aufträge vorhanden sind."
+          onConfirm={() => del(deleteId)}
+          onCancel={() => setDeleteId(null)}
+        />
+      )}
+      {error && <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>}
       <div className="flex justify-end">
         <button className="btn-primary" onClick={() => { setEditing({}); setIsNew(true); setError(''); }}>
           <Plus className="w-4 h-4" /> Kunden hinzufügen
@@ -495,7 +513,7 @@ function CustomersTab() {
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex gap-2 justify-end">
-            <button className="btn-secondary" onClick={() => setEditing(null)}><X className="w-4 h-4" /> Abbrechen</button>
+            <button className="btn-secondary" onClick={() => { setEditing(null); setError(''); }}><X className="w-4 h-4" /> Abbrechen</button>
             <button className="btn-primary" onClick={save}><Check className="w-4 h-4" /> Speichern</button>
           </div>
         </div>
@@ -508,7 +526,7 @@ function CustomersTab() {
               <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Firma</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Standorte</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Kontakt</th>
-              <th className="w-12" />
+              <th className="w-20" />
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
@@ -522,12 +540,14 @@ function CustomersTab() {
                   {c.email && <p>{c.email}</p>}
                 </td>
                 <td className="px-4 py-3">
-                  <button
-                    className="text-gray-400 hover:text-brand-600 transition-colors p-1"
-                    onClick={() => { setEditing({ ...c }); setIsNew(false); }}
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-1 justify-end">
+                    <button className="text-gray-400 hover:text-brand-600 transition-colors p-1" onClick={() => { setEditing({ ...c }); setIsNew(false); setError(''); }}>
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button className="text-gray-400 hover:text-red-500 transition-colors p-1" onClick={() => setDeleteId(c.id)}>
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

@@ -85,6 +85,18 @@ router.post('/:id/sites', requireRole('ADMIN'), async (req, res) => {
   }
 });
 
+router.delete('/:id', requireRole('ADMIN'), async (req, res) => {
+  try {
+    await prisma.customer.delete({ where: { id: req.params.id } });
+    res.json({ message: 'Gelöscht.' });
+  } catch (error: any) {
+    if (error.code === 'P2003' || error.code === 'P2014') {
+      return res.status(409).json({ message: 'Kunde kann nicht gelöscht werden – es existieren noch Aufträge für diesen Kunden.' });
+    }
+    res.status(500).json({ message: 'Interner Serverfehler.' });
+  }
+});
+
 router.put('/sites/:siteId', requireAuth, async (req, res) => {
   try {
     const { siteName, street, zip, city, country, isPrimary } = req.body;

@@ -57,7 +57,10 @@ router.delete('/:id', requireRole('ADMIN'), async (req, res) => {
     }
     await prisma.salesRep.delete({ where: { id: req.params.id } });
     res.json({ message: 'Benutzer gelöscht.' });
-  } catch (error) {
+  } catch (error: any) {
+    if (error.code === 'P2003' || error.code === 'P2014') {
+      return res.status(409).json({ message: 'Benutzer kann nicht gelöscht werden – er hat noch Aufträge oder Aktivitäten.' });
+    }
     res.status(500).json({ message: 'Interner Serverfehler.' });
   }
 });
