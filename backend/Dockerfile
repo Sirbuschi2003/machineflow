@@ -7,4 +7,4 @@ COPY prisma ./prisma
 RUN npx prisma generate
 COPY . .
 EXPOSE 3002
-CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma db seed && npm run dev"]
+CMD ["sh", "-c", "npx prisma db push --accept-data-loss && npx prisma db seed && npm run dev"]
