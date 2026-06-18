@@ -20,11 +20,16 @@ function flatten(model: any) {
 
 router.get('/', requireAuth, async (req, res) => {
   try {
-    const models = await prisma.machineModel.findMany({
-      include: includeAccessories,
-      orderBy: { modelName: 'asc' },
-    });
-    res.json(models.map(flatten));
+    const [models, universalAccessories] = await Promise.all([
+      prisma.machineModel.findMany({ include: includeAccessories, orderBy: { modelName: 'asc' } }),
+      // Accessories with NO model assignment fit every machine
+      prisma.accessory.findMany({ where: { compatibleModels: { none: {} } }, orderBy: { name: 'asc' } }),
+    ]);
+
+    res.json(models.map((m) => ({
+      ...flatten(m),
+      compatibleAccessories: [...m.compatibleAccessories.map((ca: any) => ca.accessory), ...universalAccessories],
+    })));
   } catch (error) {
     res.status(500).json({ message: 'Interner Serverfehler.' });
   }
