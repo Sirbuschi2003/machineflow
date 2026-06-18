@@ -59,18 +59,29 @@ model CustomerSite {
 }
 
 model MachineModel {
-  id              String           @id @default(cuid())
-  modelName       String
-  description     String?
-  machineRequests MachineRequest[]
+  id                    String                  @id @default(cuid())
+  modelName             String
+  description           String?
+  compatibleAccessories MachineModelAccessory[]
+  machineRequests       MachineRequest[]
 }
 
 model Accessory {
-  id                 String              @id @default(cuid())
+  id                 String                  @id @default(cuid())
   name               String
   description        String?
-  hasSerialNumber    Boolean             @default(false)
+  hasSerialNumber    Boolean                 @default(false)
+  compatibleModels   MachineModelAccessory[]
   requestAccessories RequestAccessory[]
+}
+
+model MachineModelAccessory {
+  machineModelId String
+  accessoryId    String
+  machineModel   MachineModel @relation(fields: [machineModelId], references: [id], onDelete: Cascade)
+  accessory      Accessory    @relation(fields: [accessoryId], references: [id], onDelete: Cascade)
+
+  @@id([machineModelId, accessoryId])
 }
 
 model MachineRequest {

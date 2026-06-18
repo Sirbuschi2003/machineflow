@@ -31,7 +31,7 @@ router.get('/', requireAuth, async (req, res) => {
   }
 });
 
-router.post('/', requireRole('ADMIN'), async (req, res) => {
+router.post('/', requireRole('ADMIN', 'SALES', 'MANAGEMENT'), async (req, res) => {
   try {
     const { customerNumber, companyName, phone, email, sites } = req.body;
     const customer = await prisma.customer.create({

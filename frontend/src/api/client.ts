@@ -32,6 +32,7 @@ export interface MachineModel {
   id: string;
   modelName: string;
   description?: string;
+  compatibleAccessories?: Accessory[];
 }
 
 export interface Accessory {
@@ -110,9 +111,9 @@ export const api = {
 
   machineModels: {
     getAll: () => request<MachineModel[]>('/machine-models'),
-    create: (data: Partial<MachineModel>) =>
+    create: (data: Partial<MachineModel> & { accessoryIds?: string[] }) =>
       request<MachineModel>('/machine-models', { method: 'POST', body: JSON.stringify(data) }),
-    update: (id: string, data: Partial<MachineModel>) =>
+    update: (id: string, data: Partial<MachineModel> & { accessoryIds?: string[] }) =>
       request<MachineModel>(`/machine-models/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: string) => request<void>(`/machine-models/${id}`, { method: 'DELETE' }),
   },

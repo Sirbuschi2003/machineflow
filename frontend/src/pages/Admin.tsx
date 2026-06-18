@@ -170,22 +170,45 @@ function UsersTab() {
 // ─── Machine Models Tab ──────────────────────────────────────────────────────
 function ModelsTab() {
   const [items, setItems] = useState<MachineModel[]>([]);
+  const [allAccessories, setAllAccessories] = useState<Accessory[]>([]);
   const [editing, setEditing] = useState<Partial<MachineModel> | null>(null);
+  const [selectedAccessoryIds, setSelectedAccessoryIds] = useState<string[]>([]);
   const [isNew, setIsNew] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [error, setError] = useState('');
 
   const load = useCallback(() => api.machineModels.getAll().then(setItems), []);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { api.accessories.getAll().then(setAllAccessories); }, []);
+
+  const openNew = () => {
+    setEditing({});
+    setSelectedAccessoryIds([]);
+    setIsNew(true);
+    setError('');
+  };
+
+  const openEdit = (item: MachineModel) => {
+    setEditing({ ...item });
+    setSelectedAccessoryIds((item.compatibleAccessories ?? []).map((a) => a.id));
+    setIsNew(false);
+    setError('');
+  };
+
+  const toggleAcc = (id: string) => {
+    setSelectedAccessoryIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
 
   const save = async () => {
     if (!editing) return;
     setError('');
     try {
       if (isNew) {
-        await api.machineModels.create(editing);
+        await api.machineModels.create({ ...editing, accessoryIds: selectedAccessoryIds });
       } else {
-        await api.machineModels.update(editing.id!, editing);
+        await api.machineModels.update(editing.id!, { ...editing, accessoryIds: selectedAccessoryIds });
       }
       setEditing(null);
       load();
@@ -204,12 +227,12 @@ function ModelsTab() {
     <div className="space-y-4">
       {deleteId && <ConfirmDialog message="Modell wirklich löschen?" onConfirm={() => del(deleteId)} onCancel={() => setDeleteId(null)} />}
       <div className="flex justify-end">
-        <button className="btn-primary" onClick={() => { setEditing({}); setIsNew(true); setError(''); }}>
+        <button className="btn-primary" onClick={openNew}>
           <Plus className="w-4 h-4" /> Modell hinzufügen
         </button>
       </div>
       {editing && (
-        <div className="card p-5 space-y-3">
+        <div className="card p-5 space-y-4">
           <h3 className="text-sm font-semibold text-gray-900">{isNew ? 'Neues Modell' : 'Modell bearbeiten'}</h3>
           <div>
             <label className="label">Modellname</label>
@@ -219,6 +242,39 @@ function ModelsTab() {
             <label className="label">Beschreibung</label>
             <input className="input" value={editing.description || ''} onChange={(e) => setEditing((p) => ({ ...p, description: e.target.value }))} />
           </div>
+
+          {/* Compatible accessories */}
+          <div>
+            <label className="label">Kompatibles Zubehör</label>
+            {allAccessories.length === 0 ? (
+              <p className="text-sm text-gray-400 italic">Noch kein Zubehör angelegt.</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 mt-1">
+                {allAccessories.map((acc) => (
+                  <label
+                    key={acc.id}
+                    className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-colors ${
+                      selectedAccessoryIds.includes(acc.id)
+                        ? 'bg-brand-50 border-brand-200'
+                        : 'bg-white border-gray-100 hover:border-gray-200'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedAccessoryIds.includes(acc.id)}
+                      onChange={() => toggleAcc(acc.id)}
+                      className="w-4 h-4 text-brand-600 rounded border-gray-300"
+                    />
+                    <span className="text-sm text-gray-800 leading-tight">{acc.name}</span>
+                    {acc.hasSerialNumber && (
+                      <span className="ml-auto text-xs text-purple-500 bg-purple-50 px-1 py-0.5 rounded flex-shrink-0">S/N</span>
+                    )}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex gap-2 justify-end">
             <button className="btn-secondary" onClick={() => setEditing(null)}><X className="w-4 h-4" /> Abbrechen</button>
@@ -232,6 +288,7 @@ function ModelsTab() {
             <tr>
               <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Modellname</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Beschreibung</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Zubehör</th>
               <th className="w-20" />
             </tr>
           </thead>
@@ -241,8 +298,19 @@ function ModelsTab() {
                 <td className="px-4 py-3 font-medium text-gray-900">{item.modelName}</td>
                 <td className="px-4 py-3 text-gray-500">{item.description || '—'}</td>
                 <td className="px-4 py-3">
+                  {(item.compatibleAccessories ?? []).length === 0 ? (
+                    <span className="text-xs text-gray-400 italic">keines</span>
+                  ) : (
+                    <div className="flex flex-wrap gap-1">
+                      {(item.compatibleAccessories ?? []).map((a) => (
+                        <span key={a.id} className="text-xs bg-brand-50 text-brand-700 px-1.5 py-0.5 rounded-full">{a.name}</span>
+                      ))}
+                    </div>
+                  )}
+                </td>
+                <td className="px-4 py-3">
                   <div className="flex items-center gap-1 justify-end">
-                    <button className="text-gray-400 hover:text-brand-600 transition-colors p-1" onClick={() => { setEditing({ ...item }); setIsNew(false); }}>
+                    <button className="text-gray-400 hover:text-brand-600 transition-colors p-1" onClick={() => openEdit(item)}>
                       <Pencil className="w-4 h-4" />
                     </button>
                     <button className="text-gray-400 hover:text-red-500 transition-colors p-1" onClick={() => setDeleteId(item.id)}>
