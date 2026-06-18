@@ -19,12 +19,8 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 
 
 const CONSUMABLE_KEYWORDS = [
   'verbrauchsmaterial', 'toner', 'entwickler', 'resttonerbehälter',
-  'trommel', 'heftklammern',
+  'trommel', 'heftklammern', 'staple', 'heftklammer',
 ];
-
-function isSectionHeader(line: string): boolean {
-  return /^[A-Za-zÄÖÜäöüß\s\-\/]{4,50}$/.test(line) && !/\d{6,}/.test(line);
-}
 
 export interface ParsedItem {
   code: string;
@@ -40,51 +36,77 @@ export interface ParsedModel {
 }
 
 function extractMachineModels(text: string): string[] {
-  const models: string[] = [];
+  // Case-insensitive dedup: keep first occurrence
+  const seen = new Map<string, string>();
+
+  const add = (name: string) => {
+    const key = name.toLowerCase();
+    if (!seen.has(key)) seen.set(key, name);
+  };
 
   // Handle "e-STUDIO2525Ac/3025Ac/3525Ac/4525Ac" slash-separated format
-  const slashRe = /e-STUDIO(\d+[A-Za-z]+)((?:\/\d+[A-Za-z]+)+)/g;
+  const slashRe = /e-STUDIO(\d+[A-Za-z]+)((?:\/\d+[A-Za-z]+)+)/gi;
   let m: RegExpExecArray | null;
   while ((m = slashRe.exec(text)) !== null) {
-    models.push(`e-STUDIO${m[1]}`);
-    m[2].split('/').filter(Boolean).forEach((s) => models.push(`e-STUDIO${s}`));
+    add(`e-STUDIO${m[1]}`);
+    m[2].split('/').filter(Boolean).forEach((s) => add(`e-STUDIO${s}`));
   }
 
   // Direct full names (e.g. "e-STUDIO3525Ac")
-  const directRe = /e-STUDIO\d+[A-Za-z]+/g;
-  let d: RegExpExecArray | null;
-  while ((d = directRe.exec(text)) !== null) {
-    models.push(d[0]);
+  const directRe = /e-STUDIO\d+[A-Za-z]+/gi;
+  while ((m = directRe.exec(text)) !== null) {
+    add(m[0]);
   }
 
-  return [...new Set(models)];
+  return [...seen.values()];
 }
 
 function parseAccessories(text: string): ParsedItem[] {
-  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
-  // CODE  ARTICLE-NO  Description
-  // e.g.: KA-5005PC 6AG00006726 Vorlagenglasabdeckung
-  const ITEM_RE = /^([A-Z][A-Z0-9]{0,5}(?:-[A-Z0-9]+)+)\s+([0-9][A-Z0-9]{9,11})\s+(.+)/;
+  // Anchor on article numbers (very distinctive: digit + 10-11 alphanumeric chars)
+  // Then look back for product code and forward for name
+  const ARTICLE_RE = /\b([0-9][A-Z0-9]{9,11})\b/g;
+  const CODE_RE = /([A-Z]{1,4}(?:-[A-Z0-9]+)+)\s*$/;
+  // Size/weight/dims info to strip from name
+  const TRIM_RE = /[,;]?\s*\d[\d\s]*\s*(x\s*\d|mm|cm|kg|Blatt|Blatt|Umschläge|Ablagen|Kapazität|g\/m).*/i;
 
   const accessories: ParsedItem[] = [];
-  let skipSection = false;
+  const seenCodes = new Set<string>();
+  let match: RegExpExecArray | null;
 
-  for (const line of lines) {
-    const lower = line.toLowerCase();
+  while ((match = ARTICLE_RE.exec(text)) !== null) {
+    const articleNumber = match[1];
+    const pos = match.index;
 
-    if (isSectionHeader(line)) {
-      skipSection = CONSUMABLE_KEYWORDS.some((kw) => lower.includes(kw));
-      continue;
-    }
-    if (skipSection) continue;
+    // Look back up to 80 chars for a product code
+    const before = text.substring(Math.max(0, pos - 80), pos);
+    const codeMatch = before.match(CODE_RE);
+    if (!codeMatch) continue;
+    const code = codeMatch[1];
+    if (seenCodes.has(code)) continue;
 
-    const hit = line.match(ITEM_RE);
-    if (hit) {
-      const name = hit[3].trim();
-      // Skip lines that are actually machine model references
-      if (name.startsWith('e-STUDIO') || /^[0-9]{6,}/.test(name)) continue;
-      accessories.push({ code: hit[1], articleNumber: hit[2], name, selected: true });
-    }
+    // Look forward up to 300 chars for the name
+    const after = text.substring(pos + articleNumber.length, pos + articleNumber.length + 300);
+    // Name is the next non-empty stretch of text (skip leading whitespace/newlines)
+    const nameMatch = after.match(/^[\s\n]+([^\n]+)/);
+    if (!nameMatch) continue;
+
+    let name = nameMatch[1].trim();
+    // Strip dimension/weight details that come after the name
+    name = name.replace(TRIM_RE, '').trim();
+    // Remove trailing punctuation
+    name = name.replace(/[,;]\s*$/, '').trim();
+    if (!name || name.length < 3) continue;
+
+    // Skip consumables
+    const nameLower = name.toLowerCase();
+    const codeLower = code.toLowerCase();
+    if (CONSUMABLE_KEYWORDS.some((kw) => nameLower.includes(kw) || codeLower.includes(kw))) continue;
+
+    // Skip machine model lines
+    if (name.startsWith('e-STUDIO')) continue;
+
+    seenCodes.add(code);
+    accessories.push({ code, articleNumber, name, selected: true });
   }
 
   return accessories;
