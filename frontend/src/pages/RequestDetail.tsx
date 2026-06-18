@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, CheckCircle, Clock, Package, Wrench, AlertTriangle,
@@ -59,6 +59,22 @@ function ActionPanel({ request, onUpdate }: ActionPanelProps) {
     Object.fromEntries(request.accessories.map((a) => [a.id, a.serialNumber || '']))
   );
 
+  // Sort order for barcode scanning: MR → KD → MY → rest
+  const CODE_ORDER: Record<string, number> = { MR: 0, KD: 1, MY: 2 };
+  const sortedAccessories = [...request.accessories].sort((a, b) => {
+    const pa = CODE_ORDER[(a.accessory.code ?? '').split('-')[0].toUpperCase()] ?? 10;
+    const pb = CODE_ORDER[(b.accessory.code ?? '').split('-')[0].toUpperCase()] ?? 10;
+    return pa - pb;
+  });
+  const snItems = sortedAccessories.filter((a) => a.accessory.hasSerialNumber);
+  const noSnItems = sortedAccessories.filter((a) => !a.accessory.hasSerialNumber);
+
+  const [confirmed, setConfirmed] = useState<Record<string, boolean>>(
+    Object.fromEntries(request.accessories.filter((a) => !a.accessory.hasSerialNumber).map((a) => [a.id, false]))
+  );
+  const snRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const machineSnRef = useRef<HTMLInputElement>(null);
+
   if (!user) return null;
 
   const transition = async (toStatus: RequestStatus, extra?: Record<string, unknown>) => {
@@ -79,10 +95,9 @@ function ActionPanel({ request, onUpdate }: ActionPanelProps) {
     }
   };
 
-  const snRequired = request.accessories.filter((a) => a.accessory.hasSerialNumber);
-  const allSnFilled =
-    !serialNumber.trim() === false &&
-    snRequired.every((a) => accSerials[a.id]?.trim());
+  const allSnFilled = !!serialNumber.trim() && snItems.every((a) => accSerials[a.id]?.trim());
+  const allConfirmed = noSnItems.every((a) => confirmed[a.id]);
+  const canSubmitWarehouse = allSnFilled && allConfirmed;
 
   // SALES: can submit a DRAFT
   if (request.status === 'DRAFT' && (user.role === 'SALES' || user.role === 'ADMIN')) {
@@ -130,35 +145,112 @@ function ActionPanel({ request, onUpdate }: ActionPanelProps) {
     );
   }
 
-  // WAREHOUSE: enter SNs and mark as UNPACKING
+  // WAREHOUSE: scan SNs and confirm non-SN accessories → UNPACKING
   if (request.status === 'IN_WAREHOUSE' && (user.role === 'WAREHOUSE' || user.role === 'ADMIN')) {
+    const focusNext = (currentId: string) => {
+      const ids = snItems.map((a) => a.id);
+      const idx = ids.indexOf(currentId);
+      if (idx >= 0 && idx < ids.length - 1) snRefs.current[ids[idx + 1]]?.focus();
+    };
+
+    const doneCount = snItems.filter((a) => accSerials[a.id]?.trim()).length + noSnItems.filter((a) => confirmed[a.id]).length;
+    const totalCount = snItems.length + noSnItems.length;
+
     return (
       <div className="space-y-3">
-        <div>
-          <label className="label">Maschinen-Seriennummer *</label>
-          <input
-            className="input"
-            placeholder="z.B. CP3000-SN-88203"
-            value={serialNumber}
-            onChange={(e) => setSerialNumber(e.target.value)}
+        {/* Progress */}
+        <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+          <span>Fortschritt</span>
+          <span className="font-semibold">{doneCount + (serialNumber.trim() ? 1 : 0)} / {totalCount + 1}</span>
+        </div>
+        <div className="w-full bg-gray-100 rounded-full h-1.5 mb-3">
+          <div
+            className="bg-brand-500 h-1.5 rounded-full transition-all"
+            style={{ width: `${Math.round(((doneCount + (serialNumber.trim() ? 1 : 0)) / (totalCount + 1)) * 100)}%` }}
           />
         </div>
-        {snRequired.map((acc) => (
-          <div key={acc.id}>
-            <label className="label">
-              {acc.accessory.code && <span className="font-mono text-xs text-gray-400 mr-1">{acc.accessory.code}</span>}
-              {acc.accessory.name} – Seriennummer *
-            </label>
-            <input
-              className="input"
-              placeholder="Seriennummer eingeben"
-              value={accSerials[acc.id] || ''}
-              onChange={(e) => setAccSerials((p) => ({ ...p, [acc.id]: e.target.value }))}
-            />
+
+        {/* Machine SN */}
+        <div className={`p-3 rounded-xl border-2 transition-colors ${serialNumber.trim() ? 'border-green-300 bg-green-50' : 'border-brand-300 bg-brand-50'}`}>
+          <label className="label text-xs font-semibold text-gray-700 mb-1">
+            Maschine — {request.machineModel.modelName} *
+          </label>
+          <input
+            ref={machineSnRef}
+            autoFocus
+            className="input font-mono"
+            placeholder="Maschinen-Barcode scannen…"
+            value={serialNumber}
+            onChange={(e) => setSerialNumber(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && snItems[0]) snRefs.current[snItems[0].id]?.focus(); }}
+          />
+          {serialNumber.trim() && (
+            <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
+              <CheckCircle className="w-3 h-3" /> Gescannt
+            </p>
+          )}
+        </div>
+
+        {/* SN-required accessories */}
+        {snItems.map((acc, idx) => {
+          const filled = !!accSerials[acc.id]?.trim();
+          return (
+            <div key={acc.id} className={`p-3 rounded-xl border-2 transition-colors ${filled ? 'border-green-300 bg-green-50' : 'border-gray-200'}`}>
+              <label className="label text-xs font-semibold text-gray-700 mb-1">
+                {acc.accessory.code && (
+                  <span className="font-mono bg-gray-200 text-gray-700 px-1 py-0.5 rounded mr-1.5 text-xs">{acc.accessory.code}</span>
+                )}
+                {acc.accessory.name} *
+              </label>
+              <input
+                ref={(el) => { snRefs.current[acc.id] = el; }}
+                className="input font-mono"
+                placeholder="Barcode scannen…"
+                value={accSerials[acc.id] || ''}
+                onChange={(e) => setAccSerials((p) => ({ ...p, [acc.id]: e.target.value }))}
+                onKeyDown={(e) => { if (e.key === 'Enter') focusNext(acc.id); }}
+              />
+              {filled && (
+                <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
+                  <CheckCircle className="w-3 h-3" /> Gescannt
+                </p>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Non-SN accessories — confirm with checkbox */}
+        {noSnItems.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider pt-1">Kein Barcode — bitte bestätigen</p>
+            {noSnItems.map((acc) => (
+              <label
+                key={acc.id}
+                className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-colors ${
+                  confirmed[acc.id] ? 'border-green-300 bg-green-50' : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={confirmed[acc.id] || false}
+                  onChange={(e) => setConfirmed((p) => ({ ...p, [acc.id]: e.target.checked }))}
+                  className="w-5 h-5 text-green-600 rounded border-gray-300 flex-shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  {acc.accessory.code && (
+                    <span className="font-mono bg-gray-200 text-gray-700 px-1 py-0.5 rounded mr-1.5 text-xs">{acc.accessory.code}</span>
+                  )}
+                  <span className="text-sm text-gray-800">{acc.accessory.name}</span>
+                  <span className="text-xs text-gray-400 ml-1.5">× {acc.quantity}</span>
+                </div>
+                {confirmed[acc.id] && <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />}
+              </label>
+            ))}
           </div>
-        ))}
+        )}
+
         <textarea
-          className="input resize-none"
+          className="input resize-none mt-2"
           rows={2}
           placeholder="Kommentar (optional)"
           value={comment}
@@ -167,20 +259,21 @@ function ActionPanel({ request, onUpdate }: ActionPanelProps) {
         {error && <p className="text-sm text-red-600">{error}</p>}
         <button
           className="btn-primary w-full justify-center"
-          disabled={loading || !allSnFilled}
+          disabled={loading || !canSubmitWarehouse}
           onClick={() =>
             transition('UNPACKING', {
               machineSerialNumber: serialNumber,
-              accessories: snRequired.map((a) => ({ id: a.id, serialNumber: accSerials[a.id] })),
+              accessories: snItems.map((a) => ({ id: a.id, serialNumber: accSerials[a.id] })),
             })
           }
         >
           <Package className="w-4 h-4" />
           Auspacken beginnen
         </button>
-        {!allSnFilled && (
+        {!canSubmitWarehouse && (
           <p className="text-xs text-amber-600 flex items-center gap-1">
-            <AlertTriangle className="w-3 h-3" /> Alle Seriennummern ausfüllen, um fortzufahren.
+            <AlertTriangle className="w-3 h-3" />
+            {!allSnFilled ? 'Alle Seriennummern scannen' : 'Alle Artikel bestätigen'}, um fortzufahren.
           </p>
         )}
       </div>
