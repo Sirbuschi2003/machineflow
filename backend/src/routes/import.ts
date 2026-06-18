@@ -3,9 +3,16 @@ import multer from 'multer';
 import prisma from '../lib/prisma';
 import { requireRole } from '../middleware/auth';
 
-// pdf-parse index.js runs self-tests on require — use internal path to skip that
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const pdfParse = require('pdf-parse/lib/pdf-parse.js') as (buf: Buffer) => Promise<{ text: string }>;
+type PdfParseFunc = (buf: Buffer) => Promise<{ text: string }>;
+let _pdfParse: PdfParseFunc | null = null;
+function getPdfParse(): PdfParseFunc {
+  if (!_pdfParse) {
+    // pdf-parse index.js runs self-tests on require — use internal path to skip that
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    _pdfParse = require('pdf-parse/lib/pdf-parse.js') as PdfParseFunc;
+  }
+  return _pdfParse;
+}
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
@@ -88,7 +95,7 @@ router.post('/parse-pdf', requireRole('ADMIN'), upload.single('pdf'), async (req
   try {
     if (!req.file) return res.status(400).json({ message: 'Keine Datei hochgeladen.' });
 
-    const data = await pdfParse(req.file.buffer);
+    const data = await getPdfParse()(req.file.buffer);
     const rawModels = extractMachineModels(data.text);
     const accessories = parseAccessories(data.text);
 
