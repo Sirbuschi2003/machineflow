@@ -32,6 +32,7 @@ export interface MachineModel {
   id: string;
   modelName: string;
   description?: string;
+  imagePath?: string;
   compatibleAccessories?: Accessory[];
 }
 
@@ -40,6 +41,7 @@ export interface Accessory {
   code?: string;
   name: string;
   description?: string;
+  imagePath?: string;
   hasSerialNumber: boolean;
   compatibleModels?: { id: string; modelName: string }[];
 }
@@ -193,5 +195,22 @@ export const api = {
       return request<{ repId: string; repName: string; count: number }[]>(`/statistics/sales-by-rep${qs}`);
     },
     summary: () => request<Record<string, number>>('/statistics/summary'),
+  },
+
+  uploads: {
+    machineModel: async (id: string, file: File): Promise<{ imagePath: string }> => {
+      const form = new FormData();
+      form.append('image', file);
+      const res = await fetch(`/api/uploads/machine-model/${id}`, { method: 'POST', credentials: 'include', body: form });
+      if (!res.ok) { const e = await res.json().catch(() => ({ message: 'Fehler.' })); throw new Error(e.message); }
+      return res.json();
+    },
+    accessory: async (id: string, file: File): Promise<{ imagePath: string }> => {
+      const form = new FormData();
+      form.append('image', file);
+      const res = await fetch(`/api/uploads/accessory/${id}`, { method: 'POST', credentials: 'include', body: form });
+      if (!res.ok) { const e = await res.json().catch(() => ({ message: 'Fehler.' })); throw new Error(e.message); }
+      return res.json();
+    },
   },
 };

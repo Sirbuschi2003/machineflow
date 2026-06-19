@@ -7,6 +7,7 @@ interface AccessorySelection {
   accessoryId: string;
   code?: string;
   name: string;
+  imagePath?: string;
   hasSerialNumber: boolean;
   quantity: number;
   selected: boolean;
@@ -59,7 +60,7 @@ export default function NewRequest() {
     const model = models.find((m) => m.id === selectedModelId);
     const accs: Accessory[] = model?.compatibleAccessories ?? [];
     setAccessorySelections(
-      accs.map((a) => ({ accessoryId: a.id, code: a.code, name: a.name, hasSerialNumber: a.hasSerialNumber, quantity: 1, selected: false }))
+      accs.map((a) => ({ accessoryId: a.id, code: a.code, name: a.name, imagePath: a.imagePath, hasSerialNumber: a.hasSerialNumber, quantity: 1, selected: false }))
     );
   }, [selectedModelId, models]);
 
@@ -411,6 +412,9 @@ export default function NewRequest() {
                         className="w-4 h-4 text-brand-600 rounded border-gray-300 focus:ring-brand-500"
                         onClick={(e) => e.stopPropagation()}
                       />
+                      {acc.imagePath && (
+                        <img src={acc.imagePath} alt="" className="w-10 h-10 object-contain rounded flex-shrink-0" />
+                      )}
                       <span className="flex-1 text-sm text-gray-800">
                         {acc.code && <span className="font-mono text-xs text-gray-400 mr-2">{acc.code}</span>}
                         {acc.name}

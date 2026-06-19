@@ -278,6 +278,25 @@ function ModelsTab() {
             )}
           </div>
 
+          {/* Image upload — only shown when editing existing model */}
+          {!isNew && editing.id && (
+            <div>
+              <label className="label">Produktbild</label>
+              {editing.imagePath && (
+                <img src={editing.imagePath} alt="" className="w-24 h-24 object-contain rounded-lg border mb-2" />
+              )}
+              <input type="file" accept="image/*" className="text-sm text-gray-600" onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file || !editing.id) return;
+                try {
+                  const { imagePath } = await api.uploads.machineModel(editing.id, file);
+                  setEditing((p) => p ? { ...p, imagePath } : p);
+                  load();
+                } catch {}
+              }} />
+            </div>
+          )}
+
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex gap-2 justify-end">
             <button className="btn-secondary" onClick={() => setEditing(null)}><X className="w-4 h-4" /> Abbrechen</button>
@@ -289,6 +308,7 @@ function ModelsTab() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50">
             <tr>
+              <th className="px-4 py-3 w-12" />
               <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Modellname</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Beschreibung</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Zubehör</th>
@@ -298,6 +318,11 @@ function ModelsTab() {
           <tbody className="divide-y divide-gray-50">
             {items.map((item) => (
               <tr key={item.id} className="hover:bg-gray-50">
+                <td className="px-4 py-3 w-12">
+                  {item.imagePath
+                    ? <img src={item.imagePath} alt="" className="w-8 h-8 object-contain rounded" />
+                    : <div className="w-8 h-8 bg-gray-100 rounded" />}
+                </td>
                 <td className="px-4 py-3 font-medium text-gray-900">{item.modelName}</td>
                 <td className="px-4 py-3 text-gray-500">{item.description || '—'}</td>
                 <td className="px-4 py-3">
@@ -444,6 +469,25 @@ function AccessoriesTab() {
             )}
           </div>
 
+          {/* Image upload — only shown when editing existing item */}
+          {!isNew && editing.id && (
+            <div>
+              <label className="label">Produktbild</label>
+              {editing.imagePath && (
+                <img src={editing.imagePath} alt="" className="w-24 h-24 object-contain rounded-lg border mb-2" />
+              )}
+              <input type="file" accept="image/*" className="text-sm text-gray-600" onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file || !editing.id) return;
+                try {
+                  const { imagePath } = await api.uploads.accessory(editing.id, file);
+                  setEditing((p) => p ? { ...p, imagePath } : p);
+                  load();
+                } catch {}
+              }} />
+            </div>
+          )}
+
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex gap-2 justify-end">
             <button className="btn-secondary" onClick={() => setEditing(null)}><X className="w-4 h-4" /> Abbrechen</button>
@@ -455,6 +499,7 @@ function AccessoriesTab() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50">
             <tr>
+              <th className="px-4 py-3 w-12" />
               <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-28">Code</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Name</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Passt an</th>
@@ -465,6 +510,11 @@ function AccessoriesTab() {
           <tbody className="divide-y divide-gray-50">
             {items.map((item) => (
               <tr key={item.id} className="hover:bg-gray-50">
+                <td className="px-4 py-3 w-12">
+                  {item.imagePath
+                    ? <img src={item.imagePath} alt="" className="w-8 h-8 object-contain rounded" />
+                    : <div className="w-8 h-8 bg-gray-100 rounded" />}
+                </td>
                 <td className="px-4 py-3">
                   {item.code
                     ? <span className="font-mono text-xs font-semibold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded">{item.code}</span>

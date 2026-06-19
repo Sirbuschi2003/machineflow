@@ -8,6 +8,7 @@ import NewRequest from './pages/NewRequest';
 import RequestDetail from './pages/RequestDetail';
 import Statistics from './pages/Statistics';
 import Admin from './pages/Admin';
+import OfflineBanner from './components/OfflineBanner';
 
 function AppRoutes() {
   return (
@@ -72,6 +73,7 @@ export default function App() {
   return (
     <AuthProvider>
       <AppRoutes />
+      <OfflineBanner />
     </AuthProvider>
   );
 }

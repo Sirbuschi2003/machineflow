@@ -7,6 +7,7 @@ import {
 import { api, MachineRequest, RequestStatus, RequestAccessory } from '../api/client';
 import { StatusBadge, STATUS_LABELS } from '../components/StatusBadge';
 import { useAuth } from '../contexts/AuthContext';
+import { enqueueTransition } from '../services/offline';
 
 function Timeline({ request }: { request: MachineRequest }) {
   const logs = request.statusLogs || [];
@@ -260,12 +261,21 @@ function ActionPanel({ request, onUpdate }: ActionPanelProps) {
         <button
           className="btn-primary w-full justify-center"
           disabled={loading || !canSubmitWarehouse}
-          onClick={() =>
+          onClick={async () => {
+            if (!navigator.onLine) {
+              enqueueTransition({
+                requestId: request.id,
+                toStatus: 'UNPACKING',
+                machineSerialNumber: serialNumber,
+                accessories: snItems.map((a) => ({ id: a.id, serialNumber: accSerials[a.id] })),
+              });
+              return;
+            }
             transition('UNPACKING', {
               machineSerialNumber: serialNumber,
               accessories: snItems.map((a) => ({ id: a.id, serialNumber: accSerials[a.id] })),
-            })
-          }
+            });
+          }}
         >
           <Package className="w-4 h-4" />
           Auspacken beginnen
@@ -513,16 +523,21 @@ export default function RequestDetail() {
               <div className="divide-y divide-gray-50">
                 {request.accessories.map((acc: RequestAccessory) => (
                   <div key={acc.id} className="flex items-center justify-between px-6 py-3">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">
-                        {acc.accessory.code && <span className="font-mono text-xs text-gray-400 mr-1.5">{acc.accessory.code}</span>}
-                        {acc.accessory.name}
-                      </p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-xs text-gray-400">× {acc.quantity}</span>
-                        {acc.accessory.hasSerialNumber && (
-                          <span className="text-xs bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded">S/N</span>
-                        )}
+                    <div className="flex items-center gap-3">
+                      {acc.accessory.imagePath && (
+                        <img src={acc.accessory.imagePath} alt="" className="w-10 h-10 object-contain rounded flex-shrink-0" />
+                      )}
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">
+                          {acc.accessory.code && <span className="font-mono text-xs text-gray-400 mr-1.5">{acc.accessory.code}</span>}
+                          {acc.accessory.name}
+                        </p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-xs text-gray-400">× {acc.quantity}</span>
+                          {acc.accessory.hasSerialNumber && (
+                            <span className="text-xs bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded">S/N</span>
+                          )}
+                        </div>
                       </div>
                     </div>
                     {acc.serialNumber && (

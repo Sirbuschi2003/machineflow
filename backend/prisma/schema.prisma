@@ -62,6 +62,7 @@ model MachineModel {
   id                    String                  @id @default(cuid())
   modelName             String
   description           String?
+  imagePath             String?
   compatibleAccessories MachineModelAccessory[]
   machineRequests       MachineRequest[]
 }
@@ -71,6 +72,7 @@ model Accessory {
   code               String?
   name               String
   description        String?
+  imagePath          String?
   hasSerialNumber    Boolean                 @default(false)
   compatibleModels   MachineModelAccessory[]
   requestAccessories RequestAccessory[]
