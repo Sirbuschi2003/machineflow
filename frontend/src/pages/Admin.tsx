@@ -340,52 +340,42 @@ function ModelsTab() {
           </div>
         </div>
       )}
-      <div className="card overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-3 w-12" />
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Modellname</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Beschreibung</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Zubehör</th>
-              <th className="w-20" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {items.map((item) => (
-              <tr key={item.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 w-12">
-                  {item.imagePath
-                    ? <img src={item.imagePath} alt="" className="w-8 h-8 object-contain rounded" />
-                    : <div className="w-8 h-8 bg-gray-100 rounded" />}
-                </td>
-                <td className="px-4 py-3 font-medium text-gray-900">{item.modelName}</td>
-                <td className="px-4 py-3 text-gray-500">{item.description || '—'}</td>
-                <td className="px-4 py-3">
-                  {(item.compatibleAccessories ?? []).length === 0 ? (
-                    <span className="text-xs text-gray-400 italic">keines</span>
-                  ) : (
-                    <div className="flex flex-wrap gap-1">
-                      {(item.compatibleAccessories ?? []).map((a) => (
-                        <span key={a.id} className="text-xs bg-brand-50 text-brand-700 px-1.5 py-0.5 rounded-full">{a.name}</span>
-                      ))}
-                    </div>
-                  )}
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-1 justify-end">
-                    <button className="text-gray-400 hover:text-brand-600 transition-colors p-1" onClick={() => openEdit(item)}>
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                    <button className="text-gray-400 hover:text-red-500 transition-colors p-1" onClick={() => setDeleteId(item.id)}>
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        {items.map((item) => (
+          <div key={item.id} className="card p-4 flex flex-col gap-3 hover:shadow-md transition-shadow relative">
+            {/* Manufacturer logo top-right */}
+            {item.manufacturerLogoPath && (
+              <img src={item.manufacturerLogoPath} alt="" className="absolute top-3 right-3 h-5 object-contain opacity-70" />
+            )}
+            {/* Product image */}
+            <div className="flex items-center justify-center h-24 bg-gray-50 rounded-lg">
+              {item.imagePath
+                ? <img src={item.imagePath} alt={item.modelName} className="h-20 w-full object-contain" />
+                : <div className="text-gray-200 text-3xl font-bold select-none">{(item.manufacturer || item.modelName).charAt(0)}</div>}
+            </div>
+            {/* Text */}
+            <div className="min-w-0 flex-1">
+              {item.manufacturer && <p className="text-xs text-gray-400 font-medium truncate">{item.manufacturer}</p>}
+              <p className="text-sm font-semibold text-gray-900 leading-tight truncate">{item.modelName}</p>
+              {item.description && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{item.description}</p>}
+              {(item.compatibleAccessories ?? []).length > 0 && (
+                <p className="text-xs text-brand-600 mt-1">{(item.compatibleAccessories ?? []).length} Zubehör</p>
+              )}
+            </div>
+            {/* Actions */}
+            <div className="flex gap-1 justify-end border-t border-gray-100 pt-2">
+              <button className="text-gray-400 hover:text-brand-600 transition-colors p-1" onClick={() => openEdit(item)} title="Bearbeiten">
+                <Pencil className="w-4 h-4" />
+              </button>
+              <button className="text-gray-400 hover:text-red-500 transition-colors p-1" onClick={() => setDeleteId(item.id)} title="Löschen">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        ))}
+        {items.length === 0 && (
+          <div className="col-span-full text-center py-10 text-sm text-gray-400 italic">Noch keine Maschinenmodelle angelegt.</div>
+        )}
       </div>
     </div>
   );
@@ -531,65 +521,55 @@ function AccessoriesTab() {
           </div>
         </div>
       )}
-      <div className="card overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-3 w-12" />
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-28">Code</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Name</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Passt an</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">S/N</th>
-              <th className="w-20" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {items.map((item) => (
-              <tr key={item.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 w-12">
-                  {item.imagePath
-                    ? <img src={item.imagePath} alt="" className="w-8 h-8 object-contain rounded" />
-                    : <div className="w-8 h-8 bg-gray-100 rounded" />}
-                </td>
-                <td className="px-4 py-3">
-                  {item.code
-                    ? <span className="font-mono text-xs font-semibold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded">{item.code}</span>
-                    : <span className="text-xs text-gray-300">–</span>}
-                </td>
-                <td className="px-4 py-3">
-                  <p className="font-medium text-gray-900">{item.name}</p>
-                  {item.description && <p className="text-xs text-gray-400 mt-0.5">{item.description}</p>}
-                </td>
-                <td className="px-4 py-3">
-                  {(item.compatibleModels ?? []).length === 0 ? (
-                    <span className="text-xs text-gray-400 italic">alle / keine Einschränkung</span>
-                  ) : (
-                    <div className="flex flex-wrap gap-1">
-                      {(item.compatibleModels ?? []).map((m) => (
-                        <span key={m.id} className="text-xs bg-brand-50 text-brand-700 px-1.5 py-0.5 rounded-full">{m.modelName}</span>
-                      ))}
-                    </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        {items.map((item) => (
+          <div key={item.id} className="card p-4 flex flex-col gap-3 hover:shadow-md transition-shadow">
+            {/* Product image */}
+            <div className="flex items-center justify-center h-20 bg-gray-50 rounded-lg">
+              {item.imagePath
+                ? <img src={item.imagePath} alt={item.name} className="h-16 w-full object-contain" />
+                : <div className="text-gray-200 text-3xl font-bold select-none">{item.name.charAt(0)}</div>}
+            </div>
+            {/* Text */}
+            <div className="min-w-0 flex-1 space-y-1">
+              <div className="flex items-start gap-1.5 flex-wrap">
+                {item.code && (
+                  <span className="font-mono text-xs font-semibold text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded shrink-0">{item.code}</span>
+                )}
+                {item.hasSerialNumber && (
+                  <span className="text-xs bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded font-medium shrink-0">S/N</span>
+                )}
+              </div>
+              <p className="text-sm font-semibold text-gray-900 leading-tight">{item.name}</p>
+              {item.description && <p className="text-xs text-gray-400 line-clamp-2">{item.description}</p>}
+              {(item.compatibleModels ?? []).length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {(item.compatibleModels ?? []).slice(0, 2).map((m) => (
+                    <span key={m.id} className="text-xs bg-brand-50 text-brand-700 px-1.5 py-0.5 rounded-full truncate max-w-[100px]">{m.modelName}</span>
+                  ))}
+                  {(item.compatibleModels ?? []).length > 2 && (
+                    <span className="text-xs text-gray-400">+{(item.compatibleModels ?? []).length - 2}</span>
                   )}
-                </td>
-                <td className="px-4 py-3">
-                  {item.hasSerialNumber
-                    ? <span className="text-xs bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded font-medium">Ja</span>
-                    : <span className="text-xs text-gray-400">Nein</span>}
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-1 justify-end">
-                    <button className="text-gray-400 hover:text-brand-600 transition-colors p-1" onClick={() => openEdit(item)}>
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                    <button className="text-gray-400 hover:text-red-500 transition-colors p-1" onClick={() => setDeleteId(item.id)}>
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </div>
+              )}
+              {(item.compatibleModels ?? []).length === 0 && (
+                <p className="text-xs text-gray-400 italic">Universell</p>
+              )}
+            </div>
+            {/* Actions */}
+            <div className="flex gap-1 justify-end border-t border-gray-100 pt-2">
+              <button className="text-gray-400 hover:text-brand-600 transition-colors p-1" onClick={() => openEdit(item)} title="Bearbeiten">
+                <Pencil className="w-4 h-4" />
+              </button>
+              <button className="text-gray-400 hover:text-red-500 transition-colors p-1" onClick={() => setDeleteId(item.id)} title="Löschen">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        ))}
+        {items.length === 0 && (
+          <div className="col-span-full text-center py-10 text-sm text-gray-400 italic">Noch kein Zubehör angelegt.</div>
+        )}
       </div>
     </div>
   );
