@@ -56,11 +56,11 @@ export default function Login() {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="label">E-Mail-Adresse</label>
+              <label className="label">Benutzername</label>
               <input
-                type="email"
+                type="text"
                 className="input"
-                placeholder="name@beispiel.de"
+                placeholder="Benutzername"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
